@@ -21,6 +21,7 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import time
 import warnings
 from datetime import datetime
 from pathlib import Path
@@ -289,6 +290,7 @@ def main() -> None:
 
     verbose = args.verbose
     source_repo = Path(args.repo_path).resolve()
+    start_time = time.time()
 
     if not (source_repo / ".git").exists():
         print(f"Error: {source_repo} is not a git repository", file=sys.stderr)
@@ -401,6 +403,9 @@ def main() -> None:
             )
         else:
             print("No UTF files found in any commit", file=sys.stderr)
+
+        elapsed = time.time() - start_time
+        print(f"Elapsed time: {elapsed:.1f}s", file=sys.stderr)
 
     finally:
         if args.keep_temp:
