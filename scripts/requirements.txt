@@ -1,0 +1,3 @@
+# Requirements for count_utf_lines.py
+# ruamel.yaml is a YAML 1.2 compliant parser (pyyaml only supports YAML 1.1)
+ruamel.yaml>=0.18.0

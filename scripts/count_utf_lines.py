@@ -16,28 +16,26 @@ Output CSV columns:
 
 import argparse
 import csv
-import os
 import re
 import shutil
 import subprocess
 import sys
 import tempfile
-from collections import defaultdict
+import warnings
 from datetime import datetime
 from pathlib import Path
 
-import yaml
+from ruamel.yaml import YAML
+from ruamel.yaml.error import ReusedAnchorWarning
 
 # Version for traceability in output
-SCRIPT_VERSION = "1.0.0"
+SCRIPT_VERSION = "1.3.0"
 
 # Regex to validate schemaVersion format: X.Y or X.Y.Z
 SCHEMA_VERSION_PATTERN = re.compile(r"^\d+\.\d+(\.\d+)?$")
 
-
-def log_warning(message: str) -> None:
-    """Log a warning message to stderr."""
-    print(f"WARNING: {message}", file=sys.stderr)
+# Directories to skip (contain test fixtures for the format itself, not real tests)
+SKIP_DIRS = {"unified-test-format"}
 
 
 def log_verbose(message: str, verbose: bool) -> None:
@@ -146,15 +144,13 @@ def is_utf_file(file_path: Path, verbose: bool = False) -> bool:
     - Having a `schemaVersion` field at root level matching X.Y or X.Y.Z
     - Having `tests` and `description` fields at root level
     """
-    try:
-        with open(file_path, "r", encoding="utf-8") as f:
-            content = yaml.safe_load(f)
-    except yaml.YAMLError as e:
-        log_warning(f"Failed to parse YAML {file_path}: {e}")
-        return False
-    except Exception as e:
-        log_warning(f"Failed to read {file_path}: {e}")
-        return False
+    yaml = YAML()
+    yaml.preserve_quotes = True
+    with open(file_path, "r", encoding="utf-8") as f:
+        # Suppress ReusedAnchorWarning - duplicate anchors are valid in YAML 1.2
+        with warnings.catch_warnings():
+            warnings.filterwarnings("ignore", category=ReusedAnchorWarning)
+            content = yaml.load(f)
 
     if not isinstance(content, dict):
         log_verbose(f"  Not a dict: {file_path}", verbose)
@@ -191,15 +187,11 @@ def count_non_comment_lines(file_path: Path) -> int:
     - Lines starting with # (comments)
     """
     count = 0
-    try:
-        with open(file_path, "r", encoding="utf-8") as f:
-            for line in f:
-                stripped = line.strip()
-                if stripped and not stripped.startswith("#"):
-                    count += 1
-    except Exception as e:
-        log_warning(f"Failed to read {file_path} for line count: {e}")
-        return 0
+    with open(file_path, "r", encoding="utf-8") as f:
+        for line in f:
+            stripped = line.strip()
+            if stripped and not stripped.startswith("#"):
+                count += 1
     return count
 
 
@@ -218,16 +210,12 @@ def process_commit(
     If max_files is set, stops after processing that many UTF files.
     """
     # Checkout the commit
-    try:
-        subprocess.run(
-            ["git", "checkout", "--force", "--quiet", commit_hash],
-            cwd=work_repo,
-            check=True,
-            capture_output=True,
-        )
-    except subprocess.CalledProcessError as e:
-        log_warning(f"Failed to checkout {commit_hash}: {e.stderr.decode()}")
-        return 0, 0
+    subprocess.run(
+        ["git", "checkout", "--force", "--quiet", commit_hash],
+        cwd=work_repo,
+        check=True,
+        capture_output=True,
+    )
 
     # Find and process UTF files
     yml_files = find_yml_files(work_repo)
@@ -237,8 +225,10 @@ def process_commit(
     total_lines = 0
 
     for yml_file in yml_files:
-        # Skip files in .git directory
+        # Skip files in .git directory or in SKIP_DIRS
         if ".git" in yml_file.parts:
+            continue
+        if any(skip_dir in yml_file.parts for skip_dir in SKIP_DIRS):
             continue
 
         log_verbose(f"Checking: {yml_file.relative_to(work_repo)}", verbose)
