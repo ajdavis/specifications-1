@@ -41,12 +41,12 @@ def log_verbose(message: str, verbose: bool) -> None:
 
 def get_all_commits_with_dates(repo_path: Path) -> list[tuple[str, str]]:
     """
-    Get all commits with their ISO dates, oldest first.
+    Get all commits on the master branch with their ISO dates, oldest first.
 
     Returns list of (commit_hash, iso_date) tuples.
     """
     result = subprocess.run(
-        ["git", "log", "--format=%H %aI", "--reverse"],
+        ["git", "log", "master", "--first-parent", "--format=%H %aI", "--reverse"],
         cwd=repo_path,
         capture_output=True,
         text=True,
@@ -257,6 +257,20 @@ def generate_chart(csv_path: Path) -> None:
             dates.append(datetime.strptime(row["date"], "%Y-%m-%d"))
             total_lines.append(int(row["total_lines"]))
     
+    # Read major changes CSV for event labels
+    events = []
+    script_dir = Path(__file__).parent
+    changes_csv = script_dir / "utf_major_changes.csv"
+    if changes_csv.exists():
+        with open(changes_csv, "r") as f:
+            reader = csv.DictReader(line for line in f if not line.startswith("#"))
+            for row in reader:
+                events.append({
+                    "date": datetime.strptime(row["date"], "%Y-%m-%d"),
+                    "lines_after": int(row["lines_after"]),
+                    "description": row["description"],
+                })
+    
     # Find the last week with 0 lines (start x-axis from there)
     x_min = None
     for i, lines in enumerate(total_lines):
@@ -266,11 +280,39 @@ def generate_chart(csv_path: Path) -> None:
             break  # Stop at first non-zero
     
     # Create figure
-    fig, ax = plt.subplots(figsize=(6, 4))
+    fig, ax = plt.subplots(figsize=(8, 5))
     
     # Plot lines (in thousands)
     lines_k = [x / 1000 for x in total_lines]
     ax.plot(dates, lines_k, linewidth=1.5, color='#1f77b4')
+    
+    # Add event labels (a, b, c, ...)
+    print("Chart legend:", file=sys.stderr)
+    for i, event in enumerate(events):
+        event_date = event["date"]
+        event_lines_k = event["lines_after"] / 1000
+        label = chr(ord('a') + i)  # a, b, c, ...
+        
+        # Print legend to terminal
+        print(f"  {label}) {event['description']}", file=sys.stderr)
+        
+        # Add a marker point
+        ax.plot(event_date, event_lines_k, 'o', color='#d62728', markersize=4)
+        
+        # Add letter label
+        if i == 0:
+            xytext = (8, 5)
+        else:
+            xytext = (-10, -1)
+        ax.annotate(
+            label,
+            xy=(event_date, event_lines_k),
+            xytext=xytext,
+            textcoords='offset points',
+            fontsize=20,
+            ha='center',
+            va='bottom',
+        )
     
     # Set x-axis limits (start from last zero week)
     if x_min:
@@ -288,7 +330,6 @@ def generate_chart(csv_path: Path) -> None:
     plt.tight_layout()
     
     # Always save to scripts/count_utf_lines.pdf
-    script_dir = Path(__file__).parent
     output_path = script_dir / "count_utf_lines.pdf"
     plt.savefig(output_path, dpi=300, bbox_inches='tight')
     print(f"Chart saved to {output_path}", file=sys.stderr)

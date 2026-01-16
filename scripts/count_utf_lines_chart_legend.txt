@@ -1,0 +1,7 @@
+Chart legend:
+  a) UTF begun
+  b) CRUD v2 tests
+  c) Client-Side Operations Timeout tests
+  d) Convert Transactions tests to UTF
+  e) Convert CRUD v1 and Retryable Writes/Reads
+  f) Convert Client-Side Field Level Encryption
