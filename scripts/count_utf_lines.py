@@ -30,7 +30,7 @@ from ruamel.yaml import YAML
 from ruamel.yaml.error import ReusedAnchorWarning
 
 # Version for traceability in output
-SCRIPT_VERSION = "1.3.0"
+SCRIPT_VERSION = "1.4.0"
 
 # Regex to validate schemaVersion format: X.Y or X.Y.Z
 SCHEMA_VERSION_PATTERN = re.compile(r"^\d+\.\d+(\.\d+)?$")
@@ -286,6 +286,11 @@ def main() -> None:
         default=None,
         help="Maximum UTF files to process per commit (default: all)",
     )
+    parser.add_argument(
+        "--overwrite-results",
+        action="store_true",
+        help="Overwrite existing CSV instead of skipping already-processed commits",
+    )
     args = parser.parse_args()
 
     verbose = args.verbose
@@ -312,6 +317,49 @@ def main() -> None:
         weekly_commits = weekly_commits[-args.max_commits:]
         print(f"Limited to {len(weekly_commits)} commits (--max-commits)", file=sys.stderr)
 
+    # Load existing results if output file exists (incremental mode)
+    existing_results = {}  # iso_week -> result dict
+    if args.output and Path(args.output).exists() and not args.overwrite_results:
+        with open(args.output, "r") as f:
+            # Skip comment lines
+            reader = csv.DictReader(
+                line for line in f if not line.startswith("#")
+            )
+            for row in reader:
+                row["num_files"] = int(row["num_files"])
+                row["total_lines"] = int(row["total_lines"])
+                existing_results[row["iso_week"]] = row
+        print(f"Loaded {len(existing_results)} existing results from {args.output}", file=sys.stderr)
+
+    # Filter out already-processed commits
+    commits_to_process = [
+        (h, d, w) for h, d, w in weekly_commits if w not in existing_results
+    ]
+    if len(commits_to_process) < len(weekly_commits):
+        print(
+            f"Skipping {len(weekly_commits) - len(commits_to_process)} already-processed commits",
+            file=sys.stderr,
+        )
+
+    # If nothing to process, just report and exit
+    if not commits_to_process:
+        print("No new commits to process", file=sys.stderr)
+        # Still print summary from existing results
+        results = sorted(existing_results.values(), key=lambda r: r["iso_week"])
+        utf_results = [r for r in results if r["num_files"] > 0]
+        if utf_results:
+            print(
+                f"First UTF files appeared: {utf_results[0]['iso_week']} "
+                f"({utf_results[0]['num_files']} files, {utf_results[0]['total_lines']} lines)",
+                file=sys.stderr,
+            )
+            print(
+                f"Latest sample: {utf_results[-1]['iso_week']} "
+                f"({utf_results[-1]['num_files']} files, {utf_results[-1]['total_lines']} lines)",
+                file=sys.stderr,
+            )
+        return
+
     # Create temporary directory and clone repo
     temp_dir = tempfile.mkdtemp(prefix="utf_count_")
     work_repo = Path(temp_dir) / "repo"
@@ -330,11 +378,11 @@ def main() -> None:
         # Process each weekly commit
         results = []
 
-        for i, (commit_hash, iso_date, iso_week) in enumerate(weekly_commits):
+        for i, (commit_hash, iso_date, iso_week) in enumerate(commits_to_process):
             # Progress indicator
             if (i + 1) % 50 == 0 or i == 0:
                 print(
-                    f"Processing commit {i + 1}/{len(weekly_commits)} "
+                    f"Processing commit {i + 1}/{len(commits_to_process)} "
                     f"({iso_week})...",
                     file=sys.stderr,
                 )
@@ -354,6 +402,13 @@ def main() -> None:
                     "total_lines": total_lines,
                 }
             )
+
+        # Merge new results with existing results
+        for result in results:
+            existing_results[result["iso_week"]] = result
+        
+        # Sort all results by iso_week
+        all_results = sorted(existing_results.values(), key=lambda r: r["iso_week"])
 
         # Write output
         output_file = (
@@ -379,15 +434,15 @@ def main() -> None:
                 ],
             )
             writer.writeheader()
-            writer.writerows(results)
+            writer.writerows(all_results)
         finally:
             if args.output:
                 output_file.close()
 
-        print(f"Processed {len(results)} weekly samples", file=sys.stderr)
+        print(f"Processed {len(results)} new commits, {len(all_results)} total weekly samples", file=sys.stderr)
 
         # Summary statistics
-        utf_results = [r for r in results if r["num_files"] > 0]
+        utf_results = [r for r in all_results if r["num_files"] > 0]
         if utf_results:
             first_utf = utf_results[0]
             last_utf = utf_results[-1]
