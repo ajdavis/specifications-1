@@ -1,0 +1,13 @@
+Specification,Commit,YAML Lines Added,YAML Lines Deleted
+CRUD v1,f992d438fa8865632e75a922d13c40e4d0955df7,3171,2310
+Command Monitoring,c51e7373aab211ed673061bd6fdb542f655e413d,915,802
+Retryable Reads,85fa23fd9e426d3de93b614287c3311a08b08dcd,10923,4467
+Retryable Writes,2c080e879cc54c386a382b33020bcc8154682acf,4376,2682
+Transactions,a7696bc0ec50f8525f99ba8849ba2feaceee4c4b,15238,12377
+Sessions,e11c1e4459428e765c18ac40099596329a0a83f4,476,465
+Change Streams,bb7a784f8411d313dfbfec107d245490102f2649,2883,2943
+Convenient API for Transactions,e51a7bcef0d342cf764817f02b618520e0e1d2ed,2232,1934
+CRUD v2,68bf3b30e96bcaf57bbfe5f601af2a9de6fc9fe9,5700,3147
+GridFS,c5813a4891c33d085a4bebd96b474bfca20cfd63,972,614
+CSFLE (automatic encryption),52a076b7e7c0fa74abbab6e28ae5e36a1de1d1cb,449,255
+CSFLE (remaining tests),49ade88e52ddfa6cee7fa0de286e5f8b0d62dcd0,24546,260
