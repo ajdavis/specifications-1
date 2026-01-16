@@ -40,3 +40,25 @@ python3 scripts/migrate_to_md.py "source/<path_to_rst_file>"
 ## generate_index
 
 Use this file to generate the top level Markdown index file. It is independent to be used as a pre-commit hook.
+
+## count_utf_lines
+
+Count lines of YAML in Unified Test Format (UTF) files across the git history and generate a chart showing corpus growth over time.
+
+### Prerequisites
+
+```bash
+pip install -r scripts/requirements.txt
+```
+
+### Usage
+
+```bash
+python3 scripts/count_utf_lines.py --output scripts/utf_growth.csv
+```
+
+This will:
+1. Analyze git history, sampling one commit per ISO week
+2. Count UTF files and lines (non-comment, non-empty) for each sample
+3. Save results to the CSV file (incrementally - skips already-processed commits)
+4. Generate a PDF chart at `scripts/count_utf_lines.pdf`

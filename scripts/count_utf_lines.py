@@ -4,14 +4,15 @@ Count non-comment, non-whitespace lines in Unified Test Format (UTF) YAML files
 across the git history of the MongoDB specifications repository.
 
 This script samples at most one commit per ISO week, identifies UTF files by
-checking for the required `schemaVersion` field, and outputs a CSV suitable
-for charting corpus growth over time.
+checking for the required `schemaVersion` field, outputs a CSV, and generates
+a PDF chart showing corpus growth over time.
 
 Usage:
-    python scripts/count_utf_lines.py [--output FILE] [--repo-path PATH]
+    python scripts/count_utf_lines.py --output FILE [--repo-path PATH]
 
-Output CSV columns:
-    commit_hash, date, iso_week, num_files, total_lines
+Output:
+    - CSV file with columns: commit_hash, date, iso_week, num_files, total_lines
+    - PDF chart: scripts/count_utf_lines.pdf
 """
 
 import argparse
@@ -30,7 +31,7 @@ from ruamel.yaml import YAML
 from ruamel.yaml.error import ReusedAnchorWarning
 
 # Version for traceability in output
-SCRIPT_VERSION = "1.4.0"
+SCRIPT_VERSION = "1.5.0"
 
 # Regex to validate schemaVersion format: X.Y or X.Y.Z
 SCHEMA_VERSION_PATTERN = re.compile(r"^\d+\.\d+(\.\d+)?$")
@@ -247,6 +248,57 @@ def process_commit(
     return num_files, total_lines
 
 
+def generate_chart(csv_path: Path) -> None:
+    """
+    Generate a PDF chart from the CSV data showing UTF corpus growth over time.
+    
+    Args:
+        csv_path: Path to the CSV file with UTF growth data
+    
+    Output:
+        Saves chart to scripts/count_utf_lines.pdf
+    """
+    import matplotlib.pyplot as plt
+    import scienceplots  # noqa: F401 - registers styles
+    
+    # Use science style with grid
+    plt.style.use(['science', 'grid'])
+    
+    # Read CSV data
+    dates = []
+    total_lines = []
+    
+    with open(csv_path, "r") as f:
+        reader = csv.DictReader(line for line in f if not line.startswith("#"))
+        for row in reader:
+            dates.append(datetime.strptime(row["date"], "%Y-%m-%d"))
+            total_lines.append(int(row["total_lines"]))
+    
+    # Create figure
+    fig, ax = plt.subplots(figsize=(6, 4))
+    
+    # Plot lines (in thousands)
+    lines_k = [x / 1000 for x in total_lines]
+    ax.plot(dates, lines_k, linewidth=1.5, color='#1f77b4')
+    
+    # Labels and title
+    ax.set_xlabel('Date')
+    ax.set_ylabel('Lines of YAML (thousands)')
+    ax.set_title('Unified Test Format Corpus Growth')
+    
+    # Format x-axis dates
+    fig.autofmt_xdate()
+    
+    # Tight layout
+    plt.tight_layout()
+    
+    # Always save to scripts/count_utf_lines.pdf
+    script_dir = Path(__file__).parent
+    output_path = script_dir / "count_utf_lines.pdf"
+    plt.savefig(output_path, dpi=300, bbox_inches='tight')
+    print(f"Chart saved to {output_path}", file=sys.stderr)
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(
         description="Count UTF YAML file lines across git history"
@@ -292,6 +344,11 @@ def main() -> None:
         help="Overwrite existing CSV instead of skipping already-processed commits",
     )
     args = parser.parse_args()
+
+    # Require --output for CSV
+    if not args.output:
+        print("Error: --output is required to specify the CSV file path", file=sys.stderr)
+        sys.exit(1)
 
     verbose = args.verbose
     source_repo = Path(args.repo_path).resolve()
@@ -358,6 +415,8 @@ def main() -> None:
                 f"({utf_results[-1]['num_files']} files, {utf_results[-1]['total_lines']} lines)",
                 file=sys.stderr,
             )
+        # Generate chart from existing data
+        generate_chart(Path(args.output))
         return
 
     # Create temporary directory and clone repo
@@ -461,6 +520,9 @@ def main() -> None:
 
         elapsed = time.time() - start_time
         print(f"Elapsed time: {elapsed:.1f}s", file=sys.stderr)
+
+        # Generate chart
+        generate_chart(Path(args.output))
 
     finally:
         if args.keep_temp:
