@@ -23,18 +23,11 @@ import subprocess
 import sys
 import tempfile
 import time
-import warnings
 from datetime import datetime
 from pathlib import Path
 
-from ruamel.yaml import YAML
-from ruamel.yaml.error import ReusedAnchorWarning
-
 # Version for traceability in output
-SCRIPT_VERSION = "1.5.0"
-
-# Regex to validate schemaVersion format: X.Y or X.Y.Z
-SCHEMA_VERSION_PATTERN = re.compile(r"^\d+\.\d+(\.\d+)?$")
+SCRIPT_VERSION = "1.6.0"
 
 # Directories to skip (contain test fixtures for the format itself, not real tests)
 SKIP_DIRS = {"unified-test-format"}
@@ -138,46 +131,36 @@ def find_yml_files(repo_path: Path) -> list[Path]:
     return sorted(set(yml_files + yaml_files))
 
 
+# Regex to detect schemaVersion field at root level with valid semver value
+# Matches: schemaVersion: "1.0" or schemaVersion: 1.21.0 (with or without quotes)
+SCHEMA_VERSION_LINE_PATTERN = re.compile(
+    r'^schemaVersion:\s*["\']?\d+\.\d+(\.\d+)?["\']?\s*$',
+    re.MULTILINE
+)
+
+
 def is_utf_file(file_path: Path, verbose: bool = False) -> bool:
     """
-    Check if a YAML file is a Unified Test Format file.
+    Check if a YAML file is a Unified Test Format file using regex.
 
-    UTF files are identified by:
-    - Having a `schemaVersion` field at root level matching X.Y or X.Y.Z
-    - Having `tests` and `description` fields at root level
+    UTF files are identified by having a `schemaVersion` field at root level
+    with a valid semver-like value (X.Y or X.Y.Z). This is a required field
+    unique to UTF files.
+
+    Using regex instead of YAML parsing:
+    - Avoids parser errors on older YAML files with non-standard syntax
+    - Much faster than full YAML parsing
+    - Accurate enough since schemaVersion is unique to UTF
     """
-    yaml = YAML()
-    yaml.preserve_quotes = True
     with open(file_path, "r", encoding="utf-8") as f:
-        # Suppress ReusedAnchorWarning - duplicate anchors are valid in YAML 1.2
-        with warnings.catch_warnings():
-            warnings.filterwarnings("ignore", category=ReusedAnchorWarning)
-            content = yaml.load(f)
+        content = f.read()
 
-    if not isinstance(content, dict):
-        log_verbose(f"  Not a dict: {file_path}", verbose)
-        return False
+    if SCHEMA_VERSION_LINE_PATTERN.search(content):
+        log_verbose(f"  IS UTF (has schemaVersion): {file_path}", verbose)
+        return True
 
-    # Check for schemaVersion (required, unique to UTF)
-    schema_version = content.get("schemaVersion")
-    if schema_version is None:
-        log_verbose(f"  No schemaVersion: {file_path}", verbose)
-        return False
-
-    if not SCHEMA_VERSION_PATTERN.match(str(schema_version)):
-        log_verbose(f"  Invalid schemaVersion '{schema_version}': {file_path}", verbose)
-        return False
-
-    # Check for required fields
-    if "tests" not in content:
-        log_verbose(f"  No 'tests' field: {file_path}", verbose)
-        return False
-    if "description" not in content:
-        log_verbose(f"  No 'description' field: {file_path}", verbose)
-        return False
-
-    log_verbose(f"  IS UTF (schemaVersion={schema_version}): {file_path}", verbose)
-    return True
+    log_verbose(f"  Not UTF (no schemaVersion): {file_path}", verbose)
+    return False
 
 
 def count_non_comment_lines(file_path: Path) -> int:
@@ -274,12 +257,24 @@ def generate_chart(csv_path: Path) -> None:
             dates.append(datetime.strptime(row["date"], "%Y-%m-%d"))
             total_lines.append(int(row["total_lines"]))
     
+    # Find the last week with 0 lines (start x-axis from there)
+    x_min = None
+    for i, lines in enumerate(total_lines):
+        if lines == 0:
+            x_min = dates[i]
+        else:
+            break  # Stop at first non-zero
+    
     # Create figure
     fig, ax = plt.subplots(figsize=(6, 4))
     
     # Plot lines (in thousands)
     lines_k = [x / 1000 for x in total_lines]
     ax.plot(dates, lines_k, linewidth=1.5, color='#1f77b4')
+    
+    # Set x-axis limits (start from last zero week)
+    if x_min:
+        ax.set_xlim(left=x_min)
     
     # Labels and title
     ax.set_xlabel('Date')
