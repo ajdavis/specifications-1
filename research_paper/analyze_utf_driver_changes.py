@@ -310,7 +310,47 @@ def main():
         "--temp-dir",
         help="Use a specific temp directory instead of creating one",
     )
+    parser.add_argument(
+        "--overwrite-results",
+        action="store_true",
+        help="Overwrite existing CSV instead of using cached results for already-processed drivers",
+    )
     args = parser.parse_args()
+
+    # Determine output path
+    output_path = Path(args.output)
+    if not output_path.is_absolute():
+        output_path = Path.cwd() / output_path
+
+    # Load existing results if output file exists (incremental mode)
+    existing_results = {}  # driver name -> result dict
+    if output_path.exists() and not args.overwrite_results:
+        with open(output_path, "r", newline="") as f:
+            reader = csv.DictReader(f)
+            for row in reader:
+                row["num_commits"] = int(row["num_commits"])
+                row["lines_added"] = int(row["lines_added"])
+                row["lines_removed"] = int(row["lines_removed"])
+                row["net_change"] = int(row["net_change"])
+                existing_results[row["driver"]] = row
+        print(f"Loaded {len(existing_results)} existing results from {output_path}")
+
+    # Determine which drivers need processing
+    drivers_to_process = [d for d in DRIVERS if d.name not in existing_results]
+    
+    if len(drivers_to_process) < len(DRIVERS):
+        print(
+            f"Skipping {len(DRIVERS) - len(drivers_to_process)} already-processed drivers "
+            f"(use --overwrite-results to reprocess)"
+        )
+
+    # If nothing to process, just report from existing results
+    if not drivers_to_process:
+        print("No new drivers to process")
+        results = [existing_results[d.name] for d in DRIVERS if d.name in existing_results]
+        print_summary(results)
+        generate_chart(output_path)
+        return
 
     # Create temp directory
     if args.temp_dir:
@@ -323,11 +363,11 @@ def main():
 
     print(f"Using temp directory: {temp_dir}")
 
-    results = []
+    new_results = []
     try:
-        for driver in DRIVERS:
+        for driver in drivers_to_process:
             result = analyze_driver(driver, temp_dir)
-            results.append(result)
+            new_results.append(result)
     finally:
         if cleanup:
             print(f"\nCleaning up temp directory...")
@@ -335,11 +375,13 @@ def main():
         else:
             print(f"\nRepositories kept in: {temp_dir}")
 
-    # Write results to CSV
-    output_path = Path(args.output)
-    if not output_path.is_absolute():
-        output_path = Path.cwd() / output_path
+    # Merge existing and new results, maintaining driver order
+    for result in new_results:
+        existing_results[result["driver"]] = result
 
+    results = [existing_results[d.name] for d in DRIVERS if d.name in existing_results]
+
+    # Write results to CSV
     fieldnames = [
         "driver",
         "repo",
@@ -356,7 +398,84 @@ def main():
 
     print(f"\nResults written to: {output_path}")
 
-    # Print summary table
+    print_summary(results)
+    generate_chart(output_path)
+
+
+def generate_chart(csv_path: Path) -> None:
+    """
+    Generate a PDF bar chart showing net LOC change per driver.
+    
+    Args:
+        csv_path: Path to the CSV file with driver code change data
+    
+    Output:
+        Saves chart to research_paper/utf_driver_code_changes.pdf
+    """
+    import matplotlib.pyplot as plt
+    import scienceplots  # noqa: F401 - registers styles
+    
+    # Use science style with grid (matches count_utf_lines.py)
+    # Disable LaTeX rendering to avoid issues with special characters like "#"
+    plt.style.use(['science', 'grid', 'no-latex'])
+    
+    # Read CSV data
+    drivers = []
+    net_changes = []
+    
+    with open(csv_path, "r", newline="") as f:
+        reader = csv.DictReader(f)
+        for row in reader:
+            driver_name = row["driver"]
+            # Skip Ruby driver as requested
+            if "Ruby" in driver_name:
+                continue
+            # Extract short language name (e.g., "C# Driver" -> "C#")
+            short_name = driver_name.replace(" Driver", "")
+            drivers.append(short_name)
+            net_changes.append(int(row["net_change"]))
+    
+    # Sort alphabetically by driver name
+    sorted_data = sorted(zip(drivers, net_changes), key=lambda x: x[0])
+    drivers = [d[0] for d in sorted_data]
+    net_changes = [d[1] for d in sorted_data]
+    
+    # Create figure
+    fig, ax = plt.subplots(figsize=(8, 5))
+    
+    # Create bar positions
+    x = range(len(drivers))
+    
+    # Color bars: green for negative (code reduction), red for positive (code increase)
+    colors = ['#2ca02c' if nc < 0 else '#d62728' for nc in net_changes]
+    
+    # Plot bars
+    bars = ax.bar(x, net_changes, color=colors, edgecolor='black', linewidth=0.5)
+    
+    # Add a horizontal line at y=0
+    ax.axhline(y=0, color='black', linewidth=0.8)
+    
+    # Set x-axis labels
+    ax.set_xticks(x)
+    ax.set_xticklabels(drivers, rotation=45, ha='right')
+    
+    # Labels and title
+    ax.set_xlabel('Driver')
+    ax.set_ylabel('Net Lines of Code Changed')
+    ax.set_title('Unified Test Format Migration: Net Code Change by Driver')
+    
+    # Tight layout
+    plt.tight_layout()
+    
+    # Save to PDF in same directory as CSV
+    output_path = csv_path.with_suffix('.pdf')
+    plt.savefig(output_path, dpi=300, bbox_inches='tight')
+    plt.close()
+    print(f"Chart saved to {output_path}")
+
+
+def print_summary(results: list[dict]) -> None:
+    """Print a formatted summary table of results."""
     print("\n" + "=" * 80)
     print("SUMMARY")
     print("=" * 80)
