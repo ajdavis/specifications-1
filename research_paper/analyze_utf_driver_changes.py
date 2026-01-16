@@ -7,6 +7,19 @@ This script:
 2. Searches git history for commits referencing Jira ticket IDs
 3. Measures net lines of test runner code added/removed (excluding YAML, JSON, etc.)
 4. Outputs results to CSV
+
+Driver Migration Tickets
+========================
+This analysis covers two major UTF migration efforts:
+
+1. DRIVERS-1525: Migrate all Spec Tests to The Unified Test Runner
+   https://jira.mongodb.org/browse/DRIVERS-1525
+
+2. DRIVERS-2295: Convert CSFLE spec tests to unified test format
+   https://jira.mongodb.org/browse/DRIVERS-2295
+
+Note: MOTOR-1197 and MOTOR-1394 (Motor async Python) are duplicates handled
+through the Python Driver migrations.
 """
 
 import argparse
@@ -26,35 +39,62 @@ class Driver:
     repo_url: str
     code_extensions: tuple[str, ...]
     ticket_ids: list[str] = field(default_factory=list)
+    status: str = ""  # Migration status
 
 
 # Define all drivers with their configurations
+# Status as of January 2026
 DRIVERS = [
+    # =========================================================================
+    # CDRIVER-3967: C Driver - Migrate all Spec Tests to The Unified Test Runner
+    # Status: Backlog (Unresolved)
+    # CDRIVER-5779: Convert CSFLE spec tests to unified test format (DRIVERS-2295)
+    # =========================================================================
     Driver(
         name="C Driver",
         repo_url="https://github.com/mongodb/mongo-c-driver.git",
         code_extensions=(".c", ".h"),
+        status="Backlog",
         ticket_ids=[
+            # DRIVERS-1525: UTF Migration
             "CDRIVER-3967",  # Epic
             "CDRIVER-3959",  # Convert GridFS spec tests
-            "CDRIVER-3960",  # Convert CRUD v2 spec tests
+            "CDRIVER-3960",  # Convert CRUD v2 spec tests (Fixed, v1.18.0)
+            # DRIVERS-2295: CSFLE to UTF
+            "CDRIVER-5779",  # Convert CSFLE spec tests to unified test format
         ],
     ),
+    # =========================================================================
+    # CXX-2236: C++ Driver - Migrate all Spec Tests to The Unified Test Runner
+    # Status: Backlog (Unresolved)
+    # CXX-3144: Convert CSFLE spec tests to unified test format (DRIVERS-2295)
+    # =========================================================================
     Driver(
         name="C++ Driver",
         repo_url="https://github.com/mongodb/mongo-cxx-driver.git",
         code_extensions=(".cpp", ".hpp", ".hh", ".h", ".cxx"),
+        status="Backlog",
         ticket_ids=[
+            # DRIVERS-1525: UTF Migration
             "CXX-2236",  # Epic
             "CXX-2228",  # Convert GridFS spec tests
-            "CXX-2229",  # Convert CRUD v2 spec tests
+            "CXX-2229",  # Convert CRUD v2 spec tests (Fixed, v3.7.0)
+            # DRIVERS-2295: CSFLE to UTF
+            "CXX-3144",  # Convert CSFLE spec tests to unified test format
         ],
     ),
+    # =========================================================================
+    # CSHARP-3620: C#/.NET Driver - Migrate all Spec Tests to The Unified Test Runner
+    # Status: Done (Resolved Mar 28 2025, v3.4.0)
+    # CSHARP-5383: Convert CSFLE spec tests to unified test format (DRIVERS-2295)
+    # =========================================================================
     Driver(
         name="C# Driver",
         repo_url="https://github.com/mongodb/mongo-csharp-driver.git",
         code_extensions=(".cs",),
+        status="Done",
         ticket_ids=[
+            # DRIVERS-1525: UTF Migration
             "CSHARP-3620",  # Epic
             "CSHARP-3587",  # Convert GridFS spec tests
             "CSHARP-3592",  # Convert CRUD v2 spec tests
@@ -63,14 +103,23 @@ DRIVERS = [
             "CSHARP-4984",  # Convert retryable writes spec tests
             "CSHARP-4989",  # Convert retryable reads spec tests
             "CSHARP-4999",  # Migrate Atlas Data Lake tests
-            "CSHARP-5000",  # Convert read/write concern spec tests
+            "CSHARP-5000",  # Convert read/write concern spec tests (Done, v3.3.0)
+            # DRIVERS-2295: CSFLE to UTF
+            "CSHARP-5383",  # Convert CSFLE spec tests to unified test format
         ],
     ),
+    # =========================================================================
+    # GODRIVER-1983: Go Driver - Migrate all Spec Tests to The Unified Test Runner
+    # Status: Ready for Work (Unresolved)
+    # GODRIVER-3402: Convert CSFLE spec tests to unified test format (DRIVERS-2295)
+    # =========================================================================
     Driver(
         name="Go Driver",
         repo_url="https://github.com/mongodb/mongo-go-driver.git",
         code_extensions=(".go",),
+        status="Ready for Work",
         ticket_ids=[
+            # DRIVERS-1525: UTF Migration
             "GODRIVER-1983",  # Epic
             "GODRIVER-1969",  # Convert GridFS spec tests
             "GODRIVER-1970",  # Convert CRUD v2 spec tests
@@ -78,13 +127,22 @@ DRIVERS = [
             "GODRIVER-2309",  # Convert sessions spec tests
             "GODRIVER-2434",  # Convert APM spec tests
             "GODRIVER-2466",  # Convert SDAM integration spec tests
+            # DRIVERS-2295: CSFLE to UTF
+            "GODRIVER-3402",  # Convert CSFLE spec tests to unified test format
         ],
     ),
+    # =========================================================================
+    # JAVA-4120: Java Driver - Migrate all Spec Tests to The Unified Test Runner
+    # Status: Done (Resolved Jun 04 2024)
+    # JAVA-5674: Convert CSFLE spec tests to unified test format (DRIVERS-2295)
+    # =========================================================================
     Driver(
         name="Java Driver",
         repo_url="https://github.com/mongodb/mongo-java-driver.git",
         code_extensions=(".java",),
+        status="Done",
         ticket_ids=[
+            # DRIVERS-1525: UTF Migration
             "JAVA-4120",  # Epic
             "JAVA-4109",  # Convert GridFS spec tests
             "JAVA-4110",  # Convert CRUD v2 spec tests
@@ -92,14 +150,23 @@ DRIVERS = [
             "JAVA-5344",  # Convert retryable reads spec tests
             "JAVA-5354",  # Migrate Atlas Data Lake tests
             "JAVA-5355",  # Convert write concern operation spec tests
-            "JAVA-5363",  # Use mapReduce command name
+            "JAVA-5363",  # Use mapReduce command name (Fixed, v5.1.0)
+            # DRIVERS-2295: CSFLE to UTF
+            "JAVA-5674",  # Convert CSFLE spec tests to unified test format
         ],
     ),
+    # =========================================================================
+    # NODE-3237: Node.js Driver - Migrate All Spec Tests to The Unified Test Runner
+    # Status: Fixed (Resolved Jul 24 2024, v6.9.0)
+    # NODE-6478: Convert CSFLE spec tests to unified test format (DRIVERS-2295)
+    # =========================================================================
     Driver(
         name="Node.js Driver",
         repo_url="https://github.com/mongodb/node-mongodb-native.git",
         code_extensions=(".js", ".ts"),
+        status="Fixed",
         ticket_ids=[
+            # DRIVERS-1525: UTF Migration
             "NODE-3237",  # Epic
             "NODE-3211",  # Convert GridFS spec tests
             "NODE-3213",  # Convert CRUD v2 spec tests
@@ -109,14 +176,23 @@ DRIVERS = [
             "NODE-5976",  # Convert CRUD v1 spec tests
             "NODE-5984",  # Convert retryable reads spec tests
             "NODE-6004",  # Migrate Atlas Data Lake tests
-            "NODE-6005",  # Convert read/write concern spec tests
+            "NODE-6005",  # Convert read/write concern spec tests (Fixed, v6.9.0)
+            # DRIVERS-2295: CSFLE to UTF
+            "NODE-6478",  # Convert CSFLE spec tests to unified test format
         ],
     ),
+    # =========================================================================
+    # PHPLIB-1289: PHP Driver - Migrate all Spec Tests to The Unified Test Runner
+    # Status: Done (Resolved Mar 26 2024)
+    # PHPLIB-1571: Convert CSFLE spec tests to unified test format (DRIVERS-2295)
+    # =========================================================================
     Driver(
         name="PHP Driver",
         repo_url="https://github.com/mongodb/mongo-php-library.git",
         code_extensions=(".php",),
+        status="Done",
         ticket_ids=[
+            # DRIVERS-1525: UTF Migration
             "PHPLIB-1289",  # Epic
             "PHPLIB-644",  # Convert GridFS spec tests
             "PHPLIB-645",  # Convert CRUD v2 spec tests
@@ -128,14 +204,24 @@ DRIVERS = [
             "PHPLIB-1403",  # Convert CRUD v1 spec tests
             "PHPLIB-1404",  # Convert retryable reads spec tests
             "PHPLIB-1408",  # Migrate Atlas Data Lake tests
-            "PHPLIB-1409",  # Convert read/write concern spec tests
+            "PHPLIB-1409",  # Convert read/write concern spec tests (Fixed, v1.18.0)
+            # DRIVERS-2295: CSFLE to UTF
+            "PHPLIB-1571",  # Convert CSFLE spec tests to unified test format
         ],
     ),
+    # =========================================================================
+    # PYTHON-2664: Python Driver - Migrate All Spec Tests to The Unified Test Runner
+    # Status: Fixed (Resolved Oct 30 2024)
+    # PYTHON-4928: Convert CSFLE spec tests to unified test format (DRIVERS-2295)
+    # Note: Also covers MOTOR-1197 and MOTOR-1394 (Motor async driver)
+    # =========================================================================
     Driver(
         name="Python Driver",
         repo_url="https://github.com/mongodb/mongo-python-driver.git",
         code_extensions=(".py",),
+        status="Fixed",
         ticket_ids=[
+            # DRIVERS-1525: UTF Migration
             "PYTHON-2664",  # Epic (also covers MOTOR-1197)
             "PYTHON-2650",  # Convert GridFS spec tests
             "PYTHON-2651",  # Convert CRUD v2 spec tests
@@ -143,27 +229,49 @@ DRIVERS = [
             "PYTHON-2723",  # Convert transactions spec tests
             "PYTHON-4249",  # Convert retryable reads spec tests
             "PYTHON-4266",  # Migrate Atlas Data Lake tests
-            "PYTHON-4267",  # Convert read/write concern spec tests
+            "PYTHON-4267",  # Convert read/write concern spec tests (Fixed, v4.9)
+            # DRIVERS-2295: CSFLE to UTF
+            "PYTHON-4928",  # Convert CSFLE spec tests to unified test format
         ],
     ),
+    # =========================================================================
+    # RUBY-3336: Ruby Driver - Migrate all Spec Tests to The Unified Test Runner
+    # Status: Backlog (Unresolved, Estimated 3 weeks)
+    # RUBY-3574: Convert CSFLE spec tests to unified test format (DRIVERS-2295)
+    # Note: No public child tickets visible for RUBY-3336
+    # =========================================================================
     Driver(
         name="Ruby Driver",
         repo_url="https://github.com/mongodb/mongo-ruby-driver.git",
         code_extensions=(".rb",),
+        status="Backlog",
         ticket_ids=[
+            # DRIVERS-1525: UTF Migration
             "RUBY-3336",  # Epic (no visible child tickets)
+            # DRIVERS-2295: CSFLE to UTF
+            "RUBY-3574",  # Convert CSFLE spec tests to unified test format
         ],
     ),
+    # =========================================================================
+    # RUST-758: Rust Driver - Migrate All Spec Tests to The Unified Test Runner
+    # Status: Backlog (Unresolved)
+    # RUST-2077: Convert CSFLE spec tests to unified test format (DRIVERS-2295)
+    # =========================================================================
     Driver(
         name="Rust Driver",
         repo_url="https://github.com/mongodb/mongo-rust-driver.git",
         code_extensions=(".rs",),
+        status="Backlog",
         ticket_ids=[
+            # DRIVERS-1525: UTF Migration
             "RUST-758",  # Epic
             "RUST-749",  # Convert CRUD v2 spec tests
             "RUST-767",  # Convert change stream spec tests
             "RUST-817",  # Convert transactions spec tests
-            "RUST-1878",  # Migrate Atlas Data Lake tests
+            "RUST-1859",  # Sync bulk write spec tests
+            "RUST-1878",  # Migrate Atlas Data Lake tests (Duplicate of RUST-499)
+            # DRIVERS-2295: CSFLE to UTF
+            "RUST-2077",  # Convert CSFLE tests to unified format
         ],
     ),
 ]
