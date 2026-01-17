@@ -25,7 +25,6 @@ through the Python Driver migrations.
 import argparse
 import csv
 import os
-import re
 import shutil
 import subprocess
 import tempfile
@@ -44,45 +43,8 @@ class Driver:
 
 # Define all drivers with their configurations
 # Status as of January 2026
+# Note: C and C++ drivers are omitted from this analysis
 DRIVERS = [
-    # =========================================================================
-    # CDRIVER-3967: C Driver - Migrate all Spec Tests to The Unified Test Runner
-    # Status: Backlog (Unresolved)
-    # CDRIVER-5779: Convert CSFLE spec tests to unified test format (DRIVERS-2295)
-    # =========================================================================
-    Driver(
-        name="C Driver",
-        repo_url="https://github.com/mongodb/mongo-c-driver.git",
-        code_extensions=(".c", ".h"),
-        status="Backlog",
-        ticket_ids=[
-            # DRIVERS-1525: UTF Migration
-            "CDRIVER-3967",  # Epic
-            "CDRIVER-3959",  # Convert GridFS spec tests
-            "CDRIVER-3960",  # Convert CRUD v2 spec tests (Fixed, v1.18.0)
-            # DRIVERS-2295: CSFLE to UTF
-            "CDRIVER-5779",  # Convert CSFLE spec tests to unified test format
-        ],
-    ),
-    # =========================================================================
-    # CXX-2236: C++ Driver - Migrate all Spec Tests to The Unified Test Runner
-    # Status: Backlog (Unresolved)
-    # CXX-3144: Convert CSFLE spec tests to unified test format (DRIVERS-2295)
-    # =========================================================================
-    Driver(
-        name="C++ Driver",
-        repo_url="https://github.com/mongodb/mongo-cxx-driver.git",
-        code_extensions=(".cpp", ".hpp", ".hh", ".h", ".cxx"),
-        status="Backlog",
-        ticket_ids=[
-            # DRIVERS-1525: UTF Migration
-            "CXX-2236",  # Epic
-            "CXX-2228",  # Convert GridFS spec tests
-            "CXX-2229",  # Convert CRUD v2 spec tests (Fixed, v3.7.0)
-            # DRIVERS-2295: CSFLE to UTF
-            "CXX-3144",  # Convert CSFLE spec tests to unified test format
-        ],
-    ),
     # =========================================================================
     # CSHARP-3620: C#/.NET Driver - Migrate all Spec Tests to The Unified Test Runner
     # Status: Done (Resolved Mar 28 2025, v3.4.0)
@@ -227,6 +189,10 @@ DRIVERS = [
             "PYTHON-2651",  # Convert CRUD v2 spec tests
             "PYTHON-2683",  # Convert change stream spec tests
             "PYTHON-2723",  # Convert transactions spec tests
+            "PYTHON-3123",  # Convert sessions spec tests to unified test format
+            "PYTHON-3312",  # Convert SDAM integration tests to unified
+            "PYTHON-4242",  # Convert retryable writes spec tests to unified test format
+            "PYTHON-4245",  # Convert CRUD v1 spec tests to unified test format
             "PYTHON-4249",  # Convert retryable reads spec tests
             "PYTHON-4266",  # Migrate Atlas Data Lake tests
             "PYTHON-4267",  # Convert read/write concern spec tests (Fixed, v4.9)

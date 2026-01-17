@@ -1,11 +1,9 @@
 driver,repo,num_commits,lines_added,lines_removed,net_change
-C Driver,https://github.com/mongodb/mongo-c-driver.git,2,424,231,193
-C++ Driver,https://github.com/mongodb/mongo-cxx-driver.git,1,150,69,81
 C# Driver,https://github.com/mongodb/mongo-csharp-driver.git,8,1600,4587,-2987
 Go Driver,https://github.com/mongodb/mongo-go-driver.git,7,365,1056,-691
 Java Driver,https://github.com/mongodb/mongo-java-driver.git,12,1213,3159,-1946
 Node.js Driver,https://github.com/mongodb/node-mongodb-native.git,2,307,1005,-698
 PHP Driver,https://github.com/mongodb/mongo-php-library.git,17,1545,4174,-2629
-Python Driver,https://github.com/mongodb/mongo-python-driver.git,7,219,243,-24
+Python Driver,https://github.com/mongodb/mongo-python-driver.git,11,436,619,-183
 Ruby Driver,https://github.com/mongodb/mongo-ruby-driver.git,0,0,0,0
 Rust Driver,https://github.com/mongodb/mongo-rust-driver.git,5,489,4555,-4066
