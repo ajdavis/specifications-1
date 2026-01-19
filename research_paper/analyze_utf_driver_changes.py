@@ -526,21 +526,25 @@ def generate_chart(csv_path: Path) -> None:
     # Plot bars
     bars = ax.bar(x, net_changes, color=colors, edgecolor='black', linewidth=0.5)
     
-    # Add a horizontal line at y=0
-    ax.axhline(y=0, color='black', linewidth=0.8)
-    
-    # Set x-axis labels
+    # (Removed blue y=0 line)
+
+    # Set x-axis labels with larger font (1.5x)
     ax.set_xticks(x)
-    ax.set_xticklabels(drivers, rotation=45, ha='right')
-    
-    # Labels and title
-    ax.set_xlabel('Driver')
-    ax.set_ylabel('Net Lines of Code Changed')
-    ax.set_title('Unified Test Format Migration: Net Code Change by Driver')
-    
+    ax.set_xticklabels(drivers, rotation=45, ha='right', fontsize=21)
+
+    # Labels with larger font (1.5x)
+    ax.set_xlabel('Driver', fontsize=24)
+    ax.set_ylabel('Net Lines of Code Changed', fontsize=24)
+
+    # Set tick parameters for both axes (1.5x)
+    ax.tick_params(axis='both', which='major', labelsize=21)
+
+    # Increase font size for legend if added in future
+    # plt.legend(fontsize=14)
+
     # Tight layout
     plt.tight_layout()
-    
+
     # Save to PDF in same directory as CSV
     output_path = csv_path.with_suffix('.pdf')
     plt.savefig(output_path, dpi=300, bbox_inches='tight')

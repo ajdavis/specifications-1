@@ -281,27 +281,29 @@ def generate_chart(csv_path: Path) -> None:
     
     # Create figure
     fig, ax = plt.subplots(figsize=(8, 5))
-    
-    # Plot lines (in thousands)
+
+    # Plot lines (in thousands) with thicker blue line
     lines_k = [x / 1000 for x in total_lines]
-    ax.plot(dates, lines_k, linewidth=1.5, color='#1f77b4')
-    
+    ax.plot(dates, lines_k, linewidth=2.5, color='#1f77b4')
+
     # Add event labels (a, b, c, ...)
     print("Chart legend:", file=sys.stderr)
     for i, event in enumerate(events):
         event_date = event["date"]
         event_lines_k = event["lines_after"] / 1000
         label = chr(ord('a') + i)  # a, b, c, ...
-        
+
         # Print legend to terminal
         print(f"  {label}) {event['description']}", file=sys.stderr)
-        
+
         # Add a marker point
-        ax.plot(event_date, event_lines_k, 'o', color='#d62728', markersize=4)
-        
+        ax.plot(event_date, event_lines_k, 'o', color='#d62728', markersize=6)
+
         # Add letter label
-        if i == 0:
+        if label == "a":
             xytext = (8, 5)
+        elif label == "f":
+            xytext = (-15, -15)
         else:
             xytext = (-10, -1)
         ax.annotate(
@@ -309,26 +311,28 @@ def generate_chart(csv_path: Path) -> None:
             xy=(event_date, event_lines_k),
             xytext=xytext,
             textcoords='offset points',
-            fontsize=20,
+            fontsize=33,
             ha='center',
             va='bottom',
         )
-    
+
     # Set x-axis limits (start from last zero week)
     if x_min:
         ax.set_xlim(left=x_min)
-    
-    # Labels and title
-    ax.set_xlabel('Date')
-    ax.set_ylabel('Lines of YAML (thousands)')
-    ax.set_title('Unified Test Format Corpus Growth')
-    
+
+    # Labels with larger font (1.5x, no title)
+    ax.set_xlabel('Date', fontsize=24)
+    ax.set_ylabel('Lines of YAML (thousands)', fontsize=24)
+
+    # Set tick parameters for both axes (1.5x)
+    ax.tick_params(axis='both', which='major', labelsize=21)
+
     # Format x-axis dates
     fig.autofmt_xdate()
-    
+
     # Tight layout
     plt.tight_layout()
-    
+
     # Always save to scripts/count_utf_lines.pdf
     output_path = script_dir / "count_utf_lines.pdf"
     plt.savefig(output_path, dpi=300, bbox_inches='tight')

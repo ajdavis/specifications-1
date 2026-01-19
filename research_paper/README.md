@@ -9,13 +9,15 @@ UTF files are identified by regex, looking for the `schemaVersion` field which i
 ### Prerequisites
 
 ```bash
-pip install -r scripts/requirements.txt
+pip install -r research_paper/requirements.txt
 ```
 
 ### Usage
 
+This has to be done from the top directory:
+
 ```bash
-python3 scripts/count_utf_lines.py --output scripts/utf_growth.csv
+python3 research_paper/count_utf_lines.py --output research_paper/utf_growth.csv
 ```
 
 This will:
@@ -23,7 +25,7 @@ This will:
 2. Identify UTF files by detecting `schemaVersion` field via regex
 3. Count lines (non-comment, non-empty) for each UTF file
 4. Save results to the CSV file (incrementally - skips already-processed commits)
-5. Generate a PDF chart at `scripts/count_utf_lines.pdf`
+5. Generate a PDF chart at `research_paper/count_utf_lines.pdf`
 
 ## md_to_latex.py
 
